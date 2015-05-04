@@ -1,10 +1,13 @@
 __author__ = 'Akhil'
+#For the following extensions:
+#Baseball, Basketball, HomeEffects, Midweek
 
 import urllib2
 import pandas as pd
 import numpy as np
 import math
 import os
+import datetime
 from fractions import Fraction
 
 
@@ -66,6 +69,11 @@ def month2num(month):
            'Dec' : 12
            }[month]
 
+def dayofweek(date_raw):
+    day, month, year = (int(x) for x in date_raw.split('/'))
+    date = datetime.date(year, month, day)
+    return date.weekday() #0:Mon, 1:Tues, etc.
+
 def get_data(year,league="E0",base_link=base_link):
     """
 
@@ -87,7 +95,8 @@ def get_data(year,league="E0",base_link=base_link):
     output.close()
     return pd.read_csv(filename)
 
-def clean_data(matchdata,add_outcomes=True):
+
+def clean_data(matchdata,add_outcomes=True, midweek=True, relegation=True, champ=True):
     """
     Returns a table of unique teams and a cleaned version of the match results
 
@@ -118,7 +127,70 @@ def clean_data(matchdata,add_outcomes=True):
 
         df = df.join(pd.get_dummies(df.home_outcome, prefix='home'))
         df = df.join(pd.get_dummies(df.away_outcome, prefix='away'))
-
+    
+    if midweek:
+        midweek=[]
+        for i in matchdata.index:
+            day=dayofweek(matchdata["Date"][i])
+            if (day >=1) and (day<=3):
+                marker=True
+            else:
+                marker=False
+            midweek.append(marker)
+        df["midweek"] = midweek 
+    
+    if relegation or champ:
+        home_wins_total=[]
+        home_draws_total=[]
+        home_games_total=[]
+        away_wins_total=[]
+        away_draws_total=[]
+        away_games_total=[]
+        for i in df.index:
+            #Cumulative wins - home
+            home_wins = np.sum(df['home_win'][(df['i_home']==df['i_home'][i])&(df.index<i)])+ \
+                        np.sum(df['away_win'][(df['i_away']==df['i_home'][i])&(df.index<i)])
+            home_wins_total.append(home_wins)
+            #Cumulative draws - home
+            home_draws = np.sum(df['home_draw'][(df['i_home']==df['i_home'][i])&(df.index<i)])+ \
+                         np.sum(df['away_draw'][(df['i_away']==df['i_home'][i])&(df.index<i)])
+            home_draws_total.append(home_draws)
+            #Cumulative games - home
+            home_games = np.sum((df['i_home']==df['i_home'][i])&(df.index<i))+ \
+                         np.sum((df['i_away']==df['i_home'][i])&(df.index<i))
+            home_games_total.append(home_games)            
+            #Cumulative wins - away
+            away_wins = np.sum(df['home_win'][(df['i_home']==df['i_away'][i])&(df.index<i)])+ \
+                        np.sum(df['away_win'][(df['i_away']==df['i_away'][i])&(df.index<i)])
+            away_wins_total.append(away_wins)
+            #Cumulative draws - away
+            away_draws = np.sum(df['home_draw'][(df['i_home']==df['i_away'][i])&(df.index<i)])+ \
+                         np.sum(df['away_draw'][(df['i_away']==df['i_away'][i])&(df.index<i)])
+            away_draws_total.append(away_draws)   
+            #Cumulative games - away
+            away_games = np.sum((df['i_home']==df['i_away'][i])&(df.index<i))+ \
+                         np.sum((df['i_away']==df['i_away'][i])&(df.index<i))
+            away_games_total.append(away_games)         
+            
+        df['home_wins_total'] = home_wins_total
+        df['home_draws_total'] = home_draws_total
+        df['home_games_total'] = home_games_total
+        df['away_wins_total'] = away_wins_total
+        df['away_draws_total'] = away_draws_total
+        df['away_games_total'] = away_games_total
+        
+        #Cumulative points
+        home_points_total=[]
+        away_points_total=[]
+        winpts=3.
+        drawpts=1.
+        for i in df.index:
+            home_points = winpts*df['home_wins_total'][i] + drawpts*df['home_draws_total'][i]
+            away_points = winpts*df['away_wins_total'][i] + drawpts*df['away_draws_total'][i]
+            home_points_total.append(home_points)
+            away_points_total.append(away_points)
+        df['home_points_total'] = home_points_total
+        df['away_points_total'] = away_points_total
     return t,df
 
 def get_baseball_data(year=2014):
