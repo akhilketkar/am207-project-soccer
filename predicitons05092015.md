@@ -4,7 +4,7 @@ layout: default
 ---
 
 ### Predicting Games for the Week of 5/09
-We do this by fitting our [model](http://nbviewer.ipython.org/github/akhilketkar/am207-project-soccer/blob/master/daniel_weitzenfeld_variation_bb_model_ak_updates.ipynb) to the all the data from the previous weeks of the season. 
+We do this by fitting our [model](http://nbviewer.ipython.org/github/akhilketkar/am207-project-soccer/blob/master/Models/daniel_weitzenfeld_variation_bb_model_ak_updates.ipynb) to the all the data from the previous weeks of the season. 
 
 ![fit](./Figures/obsVSexpGoals1415E0.png)
 
