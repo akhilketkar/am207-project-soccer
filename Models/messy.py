@@ -83,11 +83,11 @@ def get_data(year,league="E0",base_link=base_link):
     league : code for the league, E0 is premier league, I1 is Italy and so on
     """
 
-    if not os.path.isdir("./Data/"):
-        os.mkdir("./Data/")
+    if not os.path.isdir("../Data/"):
+        os.mkdir("../Data/")
 
     final_link = base_link + year + "/" + league
-    filename = "./Data/" + year + "_" + league + ".csv"
+    filename = "../Data/" + year + "_" + league + ".csv"
 
     datafile = urllib2.urlopen(final_link)
     output = open(filename,'wb')
@@ -167,13 +167,13 @@ def clean_data(matchdata,add_outcomes=True, midweek=True, relegation=True, champ
     return t,df
 
 def get_baseball_data(year=2014):
-    fname = "./Data/GL"  + str(year) + ".TXT"
+    fname = "../Data/GL"  + str(year) + ".TXT"
     df = pd.read_csv(fname,header=None)[[0,3,6,9,10]]
     df = df.rename(columns = {0:"Date",3:"AwayTeam",6:"HomeTeam",9:"FTAG",10:"FTHG"})
     return df
 
 def get_NBA_data(year):
-    fname = "./Data/NBA" + str(year) + ".TXT" #Year format example (2013-2014 season) -> 1314
+    fname = "../Data/NBA" + str(year) + ".TXT" #Year format example (2013-2014 season) -> 1314
     df = pd.read_csv(fname,header=None)[[0,2,3,4,5]]
     df = df.rename(columns = {0:"Date_raw", 2:"AwayTeam_raw", 3:"FTAG" , 4:"HomeTeam_raw", 5:"FTHG"})
     df = df.ix[1:]
@@ -429,7 +429,7 @@ def clean_team_name_NBA(t):
 
 # get fixtures for league
 def get_epl_fixtures():
-    df = pd.read_table("./Data/epl_fixtures.txt",names=['Date','Time','Matchup'])
+    df = pd.read_table("../Data/epl_fixtures.txt",names=['Date','Time','Matchup'])
     df['Date'] = pd.to_datetime(df['Date'],dayfirst=True)
     df.drop('Time',axis=1,inplace=True)
 
