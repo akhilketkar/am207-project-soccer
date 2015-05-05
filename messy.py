@@ -95,7 +95,6 @@ def get_data(year,league="E0",base_link=base_link):
     output.close()
     return pd.read_csv(filename)
 
-
 def clean_data(matchdata,add_outcomes=True, midweek=True, relegation=True, champ=True):
     """
     Returns a table of unique teams and a cleaned version of the match results
@@ -108,8 +107,11 @@ def clean_data(matchdata,add_outcomes=True, midweek=True, relegation=True, champ
     t['i'] = t.index
     # teams.head()
 
+    # convert the Date column to a pandas Date
+    matchdata["Date"] = pd.to_datetime(matchdata["Date"],dayfirst=True)
+
     # merge into original dataframe
-    df = matchdata[["HomeTeam","AwayTeam","FTHG","FTAG"]].copy()
+    df = matchdata[["Date","HomeTeam","AwayTeam","FTHG","FTAG"]].copy()
     df = pd.merge(df, t, left_on='HomeTeam', right_on='team', how='left')
     df = df.rename(columns = {'i': 'i_home'}).drop('team', 1)
     df = pd.merge(df, t, left_on='AwayTeam', right_on='team', how='left')
@@ -127,70 +129,41 @@ def clean_data(matchdata,add_outcomes=True, midweek=True, relegation=True, champ
 
         df = df.join(pd.get_dummies(df.home_outcome, prefix='home'))
         df = df.join(pd.get_dummies(df.away_outcome, prefix='away'))
-    
-    if midweek:
-        midweek=[]
-        for i in matchdata.index:
-            day=dayofweek(matchdata["Date"][i])
-            if (day >=1) and (day<=3):
-                marker=True
-            else:
-                marker=False
-            midweek.append(marker)
-        df["midweek"] = midweek 
-    
+
     if relegation or champ:
-        home_wins_total=[]
-        home_draws_total=[]
-        home_games_total=[]
-        away_wins_total=[]
-        away_draws_total=[]
-        away_games_total=[]
+        hometeam_games_played = []
+        awayteam_games_played = []
+        hometeam_prior_position=[]
+        awayteam_prior_position=[]
+
         for i in df.index:
-            #Cumulative wins - home
-            home_wins = np.sum(df['home_win'][(df['i_home']==df['i_home'][i])&(df.index<i)])+ \
-                        np.sum(df['away_win'][(df['i_away']==df['i_home'][i])&(df.index<i)])
-            home_wins_total.append(home_wins)
-            #Cumulative draws - home
-            home_draws = np.sum(df['home_draw'][(df['i_home']==df['i_home'][i])&(df.index<i)])+ \
-                         np.sum(df['away_draw'][(df['i_away']==df['i_home'][i])&(df.index<i)])
-            home_draws_total.append(home_draws)
-            #Cumulative games - home
-            home_games = np.sum((df['i_home']==df['i_home'][i])&(df.index<i))+ \
-                         np.sum((df['i_away']==df['i_home'][i])&(df.index<i))
-            home_games_total.append(home_games)            
-            #Cumulative wins - away
-            away_wins = np.sum(df['home_win'][(df['i_home']==df['i_away'][i])&(df.index<i)])+ \
-                        np.sum(df['away_win'][(df['i_away']==df['i_away'][i])&(df.index<i)])
-            away_wins_total.append(away_wins)
-            #Cumulative draws - away
-            away_draws = np.sum(df['home_draw'][(df['i_home']==df['i_away'][i])&(df.index<i)])+ \
-                         np.sum(df['away_draw'][(df['i_away']==df['i_away'][i])&(df.index<i)])
-            away_draws_total.append(away_draws)   
-            #Cumulative games - away
-            away_games = np.sum((df['i_home']==df['i_away'][i])&(df.index<i))+ \
-                         np.sum((df['i_away']==df['i_away'][i])&(df.index<i))
-            away_games_total.append(away_games)         
-            
-        df['home_wins_total'] = home_wins_total
-        df['home_draws_total'] = home_draws_total
-        df['home_games_total'] = home_games_total
-        df['away_wins_total'] = away_wins_total
-        df['away_draws_total'] = away_draws_total
-        df['away_games_total'] = away_games_total
-        
-        #Cumulative points
-        home_points_total=[]
-        away_points_total=[]
-        winpts=3.
-        drawpts=1.
-        for i in df.index:
-            home_points = winpts*df['home_wins_total'][i] + drawpts*df['home_draws_total'][i]
-            away_points = winpts*df['away_wins_total'][i] + drawpts*df['away_draws_total'][i]
-            home_points_total.append(home_points)
-            away_points_total.append(away_points)
-        df['home_points_total'] = home_points_total
-        df['away_points_total'] = away_points_total
+            i_home = df["i_home"][i]
+            i_away = df["i_away"][i]
+            i_date = df["Date"][i]
+            priorGames = df[df["Date"] < i_date].copy()
+
+            # if no prior games set stuff to default
+            if len(priorGames["Date"]) < 21:
+                hometeam_prior_position.append(-1)
+                awayteam_prior_position.append(-1)
+                hometeam_games_played.append(0)
+                awayteam_games_played.append(0)
+            else:
+
+                sns_tbl = create_season_table_baseball(priorGames,t)
+
+                hometeam_games_played.append(int(sns_tbl.iloc[[i_home]]["gamesPlayed"]))
+                hometeam_prior_position.append(int(sns_tbl.iloc[[i_home]]["position"]))
+
+                awayteam_games_played.append(int(sns_tbl.iloc[[i_away]]["gamesPlayed"]))
+                awayteam_prior_position.append(int(sns_tbl.iloc[[i_away]]["position"]))
+
+        df['hometeam_games_played'] = hometeam_games_played
+        df['awayteam_games_played'] = awayteam_games_played
+
+        df['hometeam_prior_position'] = hometeam_prior_position
+        df['awayteam_prior_position'] = awayteam_prior_position
+
     return t,df
 
 def get_baseball_data(year=2014):
@@ -226,7 +199,6 @@ def get_NBA_data(year):
         dates.append(date)
     df["Date"] = dates
     return df[["Date","AwayTeam","FTAG","HomeTeam","FTHG"]].copy()
-
 
 def create_season_table(season,teams):
     """
@@ -273,15 +245,18 @@ def create_season_table_baseball(season,teams):
     home = pd.DataFrame({'home_goals': g.home_goals.sum(),
                          'home_goals_against': g.away_goals.sum(),
                          'home_wins': g.home_win.sum(),
-                         'home_losses': g.home_loss.sum()
+                         'home_losses': g.home_loss.sum(),
+                         'home_games': g.home_goals.count()
                          })
     g = season.groupby('i_away')
     away = pd.DataFrame({'away_goals': g.away_goals.sum(),
                          'away_goals_against': g.home_goals.sum(),
                          'away_wins': g.away_win.sum(),
-                         'away_losses': g.away_loss.sum()
+                         'away_losses': g.away_loss.sum(),
+                         'away_games': g.away_goals.count()
                          })
     df = home.join(away)
+    df["gamesPlayed"] = df.home_games + df.away_games
     df['wins'] = df.home_wins + df.away_wins
     df['losses'] = df.home_losses + df.away_losses
     df['gf'] = df.home_goals + df.away_goals
@@ -291,6 +266,7 @@ def create_season_table_baseball(season,teams):
     df = df.sort_index(by='wins', ascending=False)
     df = df.reset_index()
     df['position'] = df.index + 1
+    df = df.set_index("index")
     return df
 
 def create_season_table_NBA(season, teams):
@@ -696,3 +672,8 @@ def simulate_match_home(row, atts, defs, home, intercept=None, n=1000):
 def simulate_matches_home(fixtures, atts, defs, home, intercept=None, n=1000):
     results = fixtures.apply(simulate_match_home,axis=1,args=(atts,defs,home,intercept,n))
     return results
+
+
+# df = get_data("1314")
+# t,df2 = clean_data(df)
+# print df2.head()
