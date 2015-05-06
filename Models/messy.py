@@ -23,6 +23,17 @@ team_lookup ={'Manchester United':'Man United',
               'Manchester City':'Man City',
               'Tottenham Hotspur':'Tottenham'}
 
+team_lookup_full={'Manchester City':'Man City',
+                  'Swansea City':'Swansea',
+                  'Leicester City':'Leicester',
+                  'West Ham United':'West Hame',
+                  'Newcastle United':'Newcastle',
+                  'Queens Park Rangers':'QPR',
+                  'Stoke City':'Stoke',
+                  'West Bromwich Albion':'West Brom',
+                  'Manchester United':'Man United',
+                  'Tottenham Hotspur':'Tottenham'}
+
 team_lookup_NBA ={'Los Angeles Lakers' : 'LAL',
                   'Chicago Bulls' : 'CHI',
                   'Charlotte Bobcats' : 'CHA',
@@ -166,6 +177,74 @@ def clean_data(matchdata,add_outcomes=True, midweek=True, relegation=True, champ
 
     return t,df
 
+def get_datafull(year):
+    """
+
+    Get's data for a given league and year from the full football file in Data folder
+    year : usually something like 1213 representing 2012-13
+    """
+    filename = "../Data/" + year + "_full.csv"
+    return pd.read_csv(filename)
+
+def clean_datafull(matchdata,teams,matches):
+    df = matchdata.copy()
+    home=[]
+    away=[]
+    for m in matchdata.index:
+        t1=matchdata['Home'][m]
+        t2=matchdata['Away'][m]
+        t1 = clean_team_name_full(t1)
+        t2 = clean_team_name_full(t2)
+        home.append(t1)
+        away.append(t2)
+
+    df['Home'] = home
+    df['Away'] = away
+    df=df.rename(columns = {'Home':'Team1', 'Away':'Team2'})
+    
+    dates = []
+    for entry in df.index:
+        date_split = df['Date'][entry].split("/")
+        date = str(date_split[2]) +'-'+ str(date_split[1]) +'-'+ str(date_split[0])
+        dates.append(date)
+    df['Date']=dates
+    
+    team1_game=[]
+    team2_game=[]
+    for i in df.index:
+        if df['Team1'][i] in set(teams['team']):
+            team1_game.append(1)
+        else:
+            team1_game.append(0)    
+    for i in df.index:
+        if df['Team2'][i] in set(teams['team']):
+            team2_game.append(2)
+        else:
+            team2_game.append(0)
+    df['Game'] = [x + y for x, y in zip(team1_game, team2_game)]
+    df=df[df['Game']>0]
+    df=df[df['Game']!=3]
+    EPL_teams=[]
+    for i in df.index:
+        if df['Game'][i] == 1:
+            EPLteam = df['Team1'][i]
+        if df['Game'][i] == 2:
+            EPLteam = df['Team2'][i]
+        EPL_teams.append(EPLteam)
+    df['EPL_team']=EPL_teams
+    i_teams=[]
+    for i in df.index:
+        i_team = int(teams['i'][teams['team'] == df['EPL_team'][i]].values)
+        i_teams.append(i_team)
+    df['i']=i_teams
+    df = df.drop('Team1', 1)
+    df = df.drop('Team2', 1)
+    df = df.drop('Game', 1)
+    df = df.drop('EPL_team', 1)
+    df = df.reset_index()
+    df = df.drop('index', 1)
+    return df
+
 def get_baseball_data(year=2014):
     fname = "../Data/GL"  + str(year) + ".TXT"
     df = pd.read_csv(fname,header=None)[[0,3,6,9,10]]
@@ -197,6 +276,7 @@ def get_NBA_data(year):
         date_split = df["Date_raw"][entry].split(" ")
         date = str(date_split[3]) + str(month2num(str(date_split[1]))) + str(date_split[2])
         dates.append(date)
+        
     df["Date"] = dates
     return df[["Date","AwayTeam","FTAG","HomeTeam","FTHG"]].copy()
 
@@ -420,6 +500,11 @@ def clean_team_name(t):
         t = team_lookup[t]
     else:
         t = t.replace(" City","")
+    return t
+
+def clean_team_name_full(t):
+    if t in team_lookup_full.keys():
+        t = team_lookup_full[t]
     return t
 
 def clean_team_name_NBA(t):
