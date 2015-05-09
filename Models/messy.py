@@ -106,7 +106,7 @@ def get_data(year,league="E0",base_link=base_link):
     output.close()
     return pd.read_csv(filename)
 
-def clean_data(matchdata,add_outcomes=True, midweek=True, relegation=True, champ=True):
+def clean_data(matchdata, add_outcomes=True, midweek=True, relegation=True, champ=True):
     """
     Returns a table of unique teams and a cleaned version of the match results
 
@@ -460,7 +460,7 @@ def simulate_seasons(df,teams,atts,defs,home,intercept=None,n=100):
     """
     dfs = []
     for i in range(n):
-        s = simulate_season_home(df,atts,defs,home,intercept)
+        s = simulate_season(df,atts,defs,home,intercept)
         t = create_season_table(s,teams)
         t['iteration'] = i
         dfs.append(t)
